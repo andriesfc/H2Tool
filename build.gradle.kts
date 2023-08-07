@@ -1,6 +1,7 @@
 @file:Suppress("PropertyName")
 
 import java.io.IOException
+import java.util.*
 
 plugins {
     id("common-conventions")
@@ -52,12 +53,13 @@ fun File.emptied(): File = apply {
     }
 }
 
-fun File.localized():File {
+fun File.localized(): File {
     return when {
         path.startsWith("~/") -> File(System.getProperty("user.home"), path.substring(2))
         else -> this
     }
 }
+
 
 val installLocalDist: Task by tasks.creating {
     description = "Installs into a specified local dist folder."
@@ -74,3 +76,27 @@ val installLocalDist: Task by tasks.creating {
         }
     }
 }
+
+tasks.named("compileKotlin").configure { dependsOn(updateToolProps) }
+
+fun Properties.updated(key: String, update: String): Boolean {
+    val current = getProperty(key)
+    val updatable = current != update
+    takeIf { updatable }?.setProperty(key, update)
+    return updatable
+}
+
+val updateToolProps: Task by tasks.creating {
+    description = "Updates the H2ToolApp.properties"
+    group = distributionTaskGroup
+    doLast {
+        file("src/main/resources/h2tool/H2Tool.properties").also { propsFile ->
+            if (false == propsFile.takeUnless(File::exists)?.createNewFile())
+                throw GradleException("Failed to create propsFile: $propsFile")
+            val properties = Properties().apply { propsFile.reader().use(::load) }
+            val updated = properties.updated("h2.version", h2_version)
+            if (updated) propsFile.writer().use { writer -> properties.store(writer, "Updated tool props") }
+        }
+    }
+}
+

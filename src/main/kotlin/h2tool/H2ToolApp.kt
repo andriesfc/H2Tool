@@ -4,53 +4,45 @@ import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
 
-    if (args.isEmpty()) {
-        printHelp()
-        exitProcess(0)
-    }
+    if (args.isEmpty())
+        exitWithHelp(0)
 
-    val (requested, commandHandler: ((Array<String>) -> Unit)?) = args.first()
-        .let { rc -> rc to H2Tool.entries.firstOrNull { it.command == rc }?.action }
+    val toolCommand = args.first()
+    val tool = H2Tool.of(toolCommand)?.action ?: exitWithHelp(1, toolCommand)
+    val toolArgs = args.sliceArray(1..<args.size)
 
-    if (commandHandler == null) {
-        printHelp(requested)
-        exitProcess(0)
-    }
+    tool(toolArgs)
+}
 
-    val commandHandlerArgs = args.sliceArray(1..<args.size)
-    commandHandler(commandHandlerArgs)
-
+private fun exitWithHelp(rc: Int, requested: String? = null): Nothing {
+    printHelp(requested)
+    exitProcess(rc)
 }
 
 private fun printHelp(requested: String? = null) {
+
     requested?.also {
         println("Unsupported command: $requested")
         println()
     }
-    println("The following commands are supported: ")
+
+    val h2Version = H2Tool.prop("h2.version")
+
+    print("The following commands are supported: ")
+    h2Version?.also { print(" [H2 v.%s]".format(h2Version)) }
+
     println()
-    H2Tool.entries.map(H2Tool::command).forEachIndexed { i, s ->
-        println("(%d) $s".format(i + 1, s))
+
+    H2Tool.forEachIndexed { i, tool ->
+        println("(%d) %s.".format(i + 1, tool.label()))
     }
+
+
+
     println()
     println("To see help on any of them run: h2 <command> -help")
     println("for example:")
     println()
     println("h2 ${H2Tool.Recover.command} -help")
-}
-
-internal enum class H2Tool(val command: String, val action: (Array<String>) -> Unit) {
-    Backup("backup", org.h2.tools.Backup::main),
-    Console("console", org.h2.tools.Console::main),
-    ChangeFileEncryption("change-file-encryption", org.h2.tools.ChangeFileEncryption::main),
-    ConvertTraceFile("convert-trace-file", org.h2.tools.ConvertTraceFile::main),
-    CreateCluster("create-cluster", org.h2.tools.CreateCluster::main),
-    DeleteDbFiles("delete-db-files", org.h2.tools.DeleteDbFiles::main),
-    GuiConsole("gui-console", org.h2.tools.GUIConsole::main),
-    Recover("recover", org.h2.tools.Recover::main),
-    RunScript("run-script", org.h2.tools.RunScript::main),
-    Script("script", org.h2.tools.Script::main),
-    Server("server", org.h2.tools.Server::main),
-    Shell("shell", org.h2.tools.Shell::main)
 }
 
