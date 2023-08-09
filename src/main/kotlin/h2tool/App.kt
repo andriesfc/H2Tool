@@ -23,12 +23,12 @@ object App : List<ToolRunner> by (WrappedToolRunner + ExtendedToolRunner) {
 
         println("Welcome to H2 (tools) v.$appVersion (H2 v$h2Version)")
         println()
-        println(description)
-
-        unsupportedCommand?.also {
-            println()
-            println("Unsupported Command: $unsupportedCommand")
-        }
+        println(
+            when (unsupportedCommand) {
+                null -> description
+                else -> "Unsupported Command: $unsupportedCommand"
+            }
+        )
 
         val wrapped = filterIsInstance<WrappedToolRunner>().toSortedSet(compareBy(ToolRunner::command))
         val extended = (this - wrapped.toSet()).sortedBy(ToolRunner::command)
