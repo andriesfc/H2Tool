@@ -1,6 +1,7 @@
 @file:Suppress("PropertyName")
 
 import java.io.IOException
+import java.time.LocalDateTime
 import java.util.*
 
 plugins {
@@ -10,14 +11,20 @@ plugins {
 
 val h2_version = "2.2.220"
 
+version = "0.0.1"
+
+description =
+    "This single tool exposes the builtin H2 Command line commands, " +
+            "as well as some extended tools directly implemented on the H2 database."
+
 dependencies {
     implementation("com.h2database:h2:$h2_version")
 }
 
 application {
-    mainClass.set("h2tool.H2ToolAppKt")
+    mainClass.set("h2tool.App")
     applicationName = "h2"
-    description = "H2 Tools & convenience wrapper for H2"
+    description = project.description
 }
 
 val distributionTaskGroup = "distribution"
@@ -86,16 +93,27 @@ fun Properties.updated(key: String, update: String): Boolean {
     return updatable
 }
 
+
 val updateToolProps: Task by tasks.creating {
     description = "Updates the H2ToolApp.properties"
     group = distributionTaskGroup
     doLast {
-        file("src/main/resources/h2tool/H2Tool.properties").also { propsFile ->
+        val buildTime = LocalDateTime.now().toString()
+        file("src/main/resources/h2tool/App.properties").also { propsFile ->
             if (false == propsFile.takeUnless(File::exists)?.createNewFile())
                 throw GradleException("Failed to create propsFile: $propsFile")
             val properties = Properties().apply { propsFile.reader().use(::load) }
-            val updated = properties.updated("h2.version", h2_version)
-            if (updated) propsFile.writer().use { writer -> properties.store(writer, "Updated tool props") }
+            val updated = properties.run {
+                updated("h2.version", h2_version)
+                        || updated("h2.app.version", project.version.toString())
+                        || updated("h2.tool.description", project.description.toString())
+            }
+            if (updated) propsFile.writer().use { writer ->
+                properties.store(
+                    writer,
+                    "Updated by the build on $buildTime"
+                )
+            }
         }
     }
 }
